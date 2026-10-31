@@ -1,0 +1,31 @@
+{
+  "name": "local-session-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Per-session MCP selection for OpenCode Desktop 2.2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/serge-masiutin/opencode-session-mcp.git"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "tsc --noEmit",
+    "build": "vite build",
+    "test:gui": "vite --config test/gui/vite.config.ts"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "solid-js": "1.9.17",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vite-plugin-solid": "2.11.14"
+  }
+}

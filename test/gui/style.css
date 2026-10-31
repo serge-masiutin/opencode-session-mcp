@@ -1,0 +1,24 @@
+/* Только тестовые host-токены: не поставляются в GUI-бандле плагина. */
+:root {
+  --v2-text-text-base: #202124; --v2-text-text-muted: #656970; --v2-text-text-faint: #7d8188;
+  --v2-icon-icon-faint: #969ba3; --v2-overlay-simple-overlay-hover: #eceef1;
+  --v2-state-fg-warning: #805800; --v2-state-fg-danger: #b3261e;
+  --icon-success-base: #22863a; --icon-warning-base: #ad7800; --icon-critical-base: #b3261e;
+  --fixture-bg: #f3f4f6; --fixture-surface: #fff;
+  color-scheme: light;
+}
+:root[data-theme=dark] {
+  --v2-text-text-base: #eee; --v2-text-text-muted: #a1a6ae; --v2-text-text-faint: #959aa3;
+  --v2-icon-icon-faint: #737982; --v2-overlay-simple-overlay-hover: #30343a;
+  --v2-state-fg-warning: #e6bf6b; --v2-state-fg-danger: #ff9087;
+  --icon-success-base: #56c174; --icon-warning-base: #e6bf6b; --icon-critical-base: #ff9087;
+  --fixture-bg: #101214; --fixture-surface: #202327;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 40px 16px; background: var(--fixture-bg); font: 13px system-ui; color: var(--v2-text-text-base); }
+section { width: min(640px, 100%); height: 480px; margin: auto; display: flex; flex-direction: column; background: var(--fixture-surface); border-radius: 8px; overflow: hidden; }
+h1 { font-size: 18px; margin: 20px 16px 0; } p { margin: 8px 16px 16px; }
+.fixture-body { display: flex; flex: 1; min-height: 0; }
+.fixture-host-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+input[type=search] { width: 100%; padding: 8px; border: 1px solid var(--v2-icon-icon-faint); border-radius: 6px; background: var(--fixture-surface); }
