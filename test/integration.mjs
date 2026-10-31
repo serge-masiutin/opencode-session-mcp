@@ -22,7 +22,8 @@ const provider = createServer(async (req, res) => {
   const firstStep = lastUser > lastTool && (input.tools ?? []).some((tool) => tool.function?.name === 'execute')
   const choose = firstStep && JSON.stringify(input.messages[lastUser]).includes('CHOOSE_ALPHA')
   const toolName = choose ? 'mcp_subagents' : 'execute'
-  const args = choose ? { servers: ['alpha'] } : { code: 'return search({ query: "alpha", limit: 100 })' }
+  const searchQuery = JSON.stringify(input.messages[lastUser]).includes('CONSOLE') ? 'opencode_console' : 'alpha'
+  const args = choose ? { servers: ['alpha'] } : { code: `return search({ query: ${JSON.stringify(searchQuery)}, limit: 100 })` }
   res.writeHead(200, { 'content-type': 'text/event-stream' })
   const chunk = (delta, finish_reason, usage) => ({ id: 'fixture', object: 'chat.completion.chunk', created: 1, model: 'fixture', choices: [{ index: 0, delta, finish_reason }], ...(usage === undefined ? {} : { usage }) })
   const usage = { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 }
@@ -40,7 +41,7 @@ await mkdir(directory, { recursive: true })
 const config = {
   model: 'fixture/fixture', update: 'disable', compaction: { auto: false },
   plugins: [resolve(import.meta.dirname, '..')],
-  mcp: { servers: Object.fromEntries(['alpha', 'alpha_child'].map((name) => [name, { type: 'local', command: [process.execPath, resolve(import.meta.dirname, 'mcp-fixture.mjs')], codemode: mode === 'codemode', disabled: false }])) },
+  mcp: { servers: Object.fromEntries(['alpha', 'alpha_child', 'opencode_console'].map((name) => [name, { type: 'local', command: [process.execPath, resolve(import.meta.dirname, 'mcp-fixture.mjs')], codemode: mode === 'codemode', disabled: false }])) },
   providers: { fixture: { package: '@opencode/ai/providers/openai-compatible', settings: { baseURL: `http://127.0.0.1:${provider.address().port}/v1`, apiKey: 'fixture-not-a-secret' }, models: { fixture: { limit: { context: 1_000_000, output: 8192 }, capabilities: { tools: true, input: ['text'], output: ['text'] } } } } },
 }
 await writeFile(join(root, 'config/opencode/opencode.json'), JSON.stringify(config))
@@ -77,9 +78,10 @@ async function turn(sessionID, text) {
   assert.equal(probe?.state.status, 'completed', JSON.stringify(probe?.state))
   const result = JSON.parse(probe.state.content.filter((part) => part.type === 'text').map((part) => part.text).join(''))
   if (mode === 'direct') return (requests.at(-1).tools ?? []).map((tool) => tool.function?.name)
-    .filter((name) => name === 'alpha_echo' || name === 'alpha_child_echo')
-    .map((name) => name === 'alpha_echo' ? 'tools.alpha.echo' : 'tools.alpha_child.echo')
-  return result.items.map((item) => item.path)
+    .filter((name) => ['alpha_echo', 'alpha_child_echo', 'opencode_console_echo'].includes(name))
+    .map((name) => `tools.${name.slice(0, -'_echo'.length)}.echo`)
+  // Поиск opencode_console также возвращает встроенные tools.opencode.* — это не MCP фикстуры.
+  return result.items.map((item) => item.path).filter((path) => !path.startsWith('tools.opencode.'))
 }
 try {
   await until(async () => { try { return await api('/api/info') } catch { if (server.exitCode !== null) throw new Error('Fixture server exited'); return undefined } }, Boolean)
@@ -102,6 +104,12 @@ try {
   assert.equal((await rpc('state', { sessionID: childWith })).output.servers.find((s) => s.name === 'alpha').status, 'connected')
   await rpc('set', { sessionID: childWith, server: 'alpha', enabled: false })
   await until(async () => (await rpc('state', { sessionID: one })).output, (state) => state.servers.find((s) => s.name === 'alpha')?.status === 'disabled')
+  await rpc('set', { sessionID: one, server: 'opencode_console', enabled: true })
+  await until(async () => (await rpc('state', { sessionID: one })).output, (state) => state.servers.find((s) => s.name === 'opencode_console')?.status === 'connected')
+  assert.deepEqual(await turn(one, 'CONSOLE_ENABLED'), ['tools.opencode_console.echo'])
+  assert.deepEqual(await turn(childWithout, 'CONSOLE_OTHER_SESSION'), [])
+  await rpc('set', { sessionID: one, server: 'opencode_console', enabled: false })
+  assert.deepEqual(await turn(one, 'CONSOLE_DISABLED'), [])
   console.log(`PASSED (${mode}): default-off, session isolation, child opt-in, prefix isolation, last-holder disconnect`)
 } catch (error) {
   console.error('Fixture tool names:', requests.map((request) => (request.tools ?? []).map((tool) => tool.function?.name ?? tool.name)))

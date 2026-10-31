@@ -4,6 +4,11 @@
 
 const LIST_RESOURCES = 'opencode_list_mcp_resources'
 const READ_RESOURCE = 'opencode_read_mcp_resource'
+const BUILTIN_TOOLS = [
+  LIST_RESOURCES, READ_RESOURCE, 'opencode_models',
+  'opencode_session_move', 'opencode_session_rename',
+  'opencode_worktree_create', 'opencode_worktree_list', 'opencode_worktree_remove',
+]
 
 /** Пространство имён MCP-инструментов, как его строит OpenCode (`Zd` в 2.2.0). */
 export function namespaceOf(server) {
@@ -16,7 +21,10 @@ export function validateServers(servers) {
   for (const server of servers) {
     if (/[*?]/.test(server)) throw new Error(`MCP server name contains permission wildcards: ${server}`)
     const namespace = namespaceOf(server)
-    if (namespace === 'opencode' || namespace.startsWith('opencode_')) throw new Error(`MCP namespace is reserved for OpenCode tools: ${server}`)
+    // Запрещаем только префиксы, чьё правило `${namespace}_*` захватит встроенный инструмент.
+    if (BUILTIN_TOOLS.some((action) => action.startsWith(`${namespace}_`))) {
+      throw new Error(`MCP namespace is reserved for OpenCode tools: ${server}`)
+    }
     if (namespaces.has(namespace)) throw new Error(`MCP namespace collision: ${namespaces.get(namespace)} and ${server}`)
     namespaces.set(namespace, server)
   }

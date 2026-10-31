@@ -73,6 +73,32 @@ test('colliding namespaces and permission wildcard names fail loudly', () => {
   assert.throws(() => validateServers(['a*']), /wildcards/)
   assert.throws(() => validateServers(['a', 'opencode']), /reserved/)
   assert.throws(() => validateServers(['opencode.read']), /reserved/)
+  for (const name of ['opencode_list', 'opencode_list_mcp', 'opencode_read_mcp', 'opencode_session', 'opencode_worktree']) {
+    assert.throws(() => validateServers([name]), /reserved/)
+  }
+})
+
+test('opencode_console is isolated without changing built-in resource tool permissions', () => {
+  const names = ['opencode_console', 'context7']
+  assert.doesNotThrow(() => validateServers(names))
+  const base = [{ action: '*', resource: '*', effect: 'allow' }, ...defaultDenyRules(names)]
+  const disabled = [...base, ...withEnabled([], [], names)]
+  const enabled = [...base, ...withEnabled([], ['opencode_console'], names)]
+  assert.equal(effect('opencode_console_echo', '*', disabled), 'deny')
+  assert.equal(effect('opencode_console_echo', '*', enabled), 'allow')
+  assert.equal(effect('opencode_list_mcp_resources', 'context7', enabled), 'deny')
+  for (const rules of [disabled, enabled]) {
+    assert.equal(effect('opencode_list_mcp_resources', '*', rules), 'allow')
+    assert.equal(effect('opencode_read_mcp_resource', 'context7:doc', rules), 'deny')
+    assert.equal(effect('shell', 'pwd', rules), 'allow')
+    assert.equal(effect('opencode_models', '*', rules), 'allow')
+    assert.equal(effect('opencode_session_move', '*', rules), 'allow')
+    assert.equal(effect('opencode_worktree_list', '*', rules), 'allow')
+  }
+  assert.equal(effect('opencode_list_mcp_resources', 'opencode_console', disabled), 'deny')
+  assert.equal(effect('opencode_list_mcp_resources', 'opencode_console', enabled), 'allow')
+  assert.equal(effect('opencode_read_mcp_resource', 'opencode_console:doc', disabled), 'deny')
+  assert.equal(effect('opencode_read_mcp_resource', 'opencode_console:doc', enabled), 'allow')
 })
 
 test('toggling one server keeps the others and config order', () => {
